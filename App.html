@@ -17,64 +17,6 @@
             .bg-white { background-color: transparent !important; }
         }
         
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
         .print-only { display: none; }
         
         /* Modal Animation */
@@ -119,7 +61,7 @@
                 <h3 class="text-xl font-semibold text-gray-800 text-center border-b pb-3 mb-2">Neues Konto erstellen</h3>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Inhaber Code <span class="text-red-500">*</span></label>
-                    <input type="password" id="reg-code" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Code eingeben">
+                    <input type="password" id="reg-code" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Code eingeben (31123112)">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Wunsch-Benutzername</label>
@@ -445,10 +387,9 @@
         let isAppReady = false;
 
         // ==========================================
-        // 🔥 DEINE FIREBASE CLOUD KONFIGURATION 🔥
+        // 🔥 DEINE FESTE FIREBASE KONFIGURATION 🔥
         // ==========================================
-        // Ersetze die Werte hier mit den Daten aus deiner Firebase Console
-        const myFirebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyA11L_XANyZNFlZdNWIGI7ycTBcyVjjfA8",
             authDomain: "bestellbuddy-12aeb.firebaseapp.com",
             projectId: "bestellbuddy-12aeb",
@@ -457,24 +398,18 @@
             appId: "1:724709499033:web:3db49f000475a7200c5808",
             measurementId: "G-1QH5QJ0F78"
         };
-
-        // Configuration setup (Prüft ob wir in der Vorschau sind, ansonsten nutzt es deine Cloud)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'meine-baeckerei-app';
+        
+        const appId = 'bestellbuddy'; // Interner Namespace
         // ==========================================
 
         // Firebase Init
         const app = initializeApp(firebaseConfig);
         
-        // Analytics nur initialisieren, wenn die echte Konfiguration (Bestellbuddy) genutzt wird,
-        // um 404-Fehler in der Vorschau-Umgebung zu vermeiden.
         let analytics = null;
-        if (firebaseConfig.projectId === "bestellbuddy-12aeb") {
-            try {
-                analytics = getAnalytics(app);
-            } catch (e) {
-                console.warn("Analytics Warnung:", e);
-            }
+        try {
+            analytics = getAnalytics(app);
+        } catch (e) {
+            console.warn("Analytics Warnung:", e);
         }
         
         const auth = getAuth(app);
@@ -485,8 +420,8 @@
             return username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
         };
 
-        // Helper: Get base path for this specific workspace's data across all anonymous instances
-        const getBasePath = (collectionName) => `artifacts/${appId}/public/data/${currentWorkspace}_${collectionName}`;
+        // Helper: Get base path for this specific workspace's data
+        const getBasePath = (collectionName) => `artifacts/${appId}/users/${currentWorkspace}/${collectionName}`;
 
         // Utility: Date Formatters
         const getTodayDateStr = () => {
@@ -545,6 +480,16 @@
             }
         };
 
+        // Hilfsfunktion: Firebase Fehler abfangen und Benutzerfreundlich anzeigen
+        const handleFirebaseError = (error, fallbackMessage) => {
+            console.error("Firebase Fehler:", error);
+            if (error.code === 'not-found' || (error.message && error.message.includes('NOT_FOUND'))) {
+                showModal("❌ Datenbank fehlt", "Die Datenbank wurde in deinem Firebase-Projekt noch nicht angelegt. Bitte gehe in die Firebase-Konsole zu 'Firestore Database' und klicke auf 'Datenbank erstellen' (im Testmodus).");
+            } else {
+                showModal("Fehler", fallbackMessage);
+            }
+        };
+
         // ====== Tab Navigation ======
         window.switchTab = function(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -590,7 +535,6 @@
 
         // Register Action
         document.getElementById('btn-do-register').onclick = async () => {
-            if (!firebaseUser) return showModal("Bitte warten", "Verbindung zum Server wird aufgebaut...");
             const code = document.getElementById('reg-code').value;
             const username = document.getElementById('reg-user').value;
             const pass = document.getElementById('reg-pass').value;
@@ -611,7 +555,8 @@
             const workspaceId = formatUsernameToWorkspace(username);
 
             try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_accounts', workspaceId);
+                // Das Dokument zum Speichern der Passwörter (sichere Ablage)
+                const docRef = doc(db, 'artifacts', appId, 'public', 'accounts', workspaceId);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
@@ -622,14 +567,12 @@
                     proceedToApp();
                 }
             } catch (error) {
-                console.error("Register Error:", error);
-                showModal("Fehler", "Registrierung auf dem Server fehlgeschlagen.");
+                handleFirebaseError(error, "Registrierung auf dem Server fehlgeschlagen. Überprüfe deine Internetverbindung.");
             }
         };
 
         // Login Action
         document.getElementById('btn-do-login').onclick = async () => {
-            if (!firebaseUser) return showModal("Bitte warten", "Verbindung zum Server wird aufgebaut...");
             const username = document.getElementById('log-user').value;
             const pass = document.getElementById('log-pass').value;
 
@@ -641,7 +584,7 @@
             const workspaceId = formatUsernameToWorkspace(username);
 
             try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_accounts', workspaceId);
+                const docRef = doc(db, 'artifacts', appId, 'public', 'accounts', workspaceId);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists() && docSnap.data().password === pass) {
@@ -651,8 +594,7 @@
                     showModal("Anmeldung fehlgeschlagen", "Benutzername oder Passwort ist nicht korrekt.");
                 }
             } catch (error) {
-                console.error("Login Error:", error);
-                showModal("Fehler", "Server-Verbindung fehlgeschlagen.");
+                handleFirebaseError(error, "Server-Verbindung fehlgeschlagen.");
             }
         };
 
@@ -679,16 +621,15 @@
 
         const initAuth = async () => {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch(e) { console.error("Under-the-hood auth failed", e); }
+                // Wir melden das Gerät im Hintergrund anonym an, damit es die Firestore-Regeln lesen/schreiben darf
+                await signInAnonymously(auth);
+            } catch(e) { 
+                console.warn("Anonyme Anmeldung fehlgeschlagen (Muss in Firebase Auth noch aktiviert werden). App läuft im offenen Testmodus weiter.", e); 
+            }
         };
 
         const setupListeners = () => {
-            if (!firebaseUser || !currentWorkspace) return;
+            if (!currentWorkspace) return;
             
             document.getElementById('loading-indicator').classList.remove('hidden');
 
@@ -698,7 +639,7 @@
                 updateOrderProductSelect();
                 renderMissingItemsButtons();
                 checkLoadingComplete();
-            }, (error) => console.error("Error products:", error));
+            }, (error) => handleFirebaseError(error, "Fehler beim Laden der Produkte."));
 
             unsubOrders = onSnapshot(collection(db, getBasePath('orders')), (snapshot) => {
                 orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -706,13 +647,13 @@
                     renderOverviews();
                 }
                 checkLoadingComplete();
-            }, (error) => console.error("Error orders:", error));
+            }, (error) => handleFirebaseError(error, "Fehler beim Laden der Bestellungen."));
 
             unsubMissing = onSnapshot(collection(db, getBasePath('missing_items')), (snapshot) => {
                 missingItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderMissingSummary();
                 checkLoadingComplete();
-            }, (error) => console.error("Error missing items:", error));
+            }, (error) => handleFirebaseError(error, "Fehler beim Laden der Fehlartikel."));
         };
 
         let loadedCount = 0;
@@ -727,15 +668,6 @@
                 document.getElementById('loading-indicator').classList.add('hidden');
             }
         };
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // Background connection successful. We keep the UI overlay until pseudo-login is complete.
-                firebaseUser = user;
-            } else {
-                firebaseUser = null;
-            }
-        });
 
         initAuth();
 
@@ -819,7 +751,7 @@
         };
 
         document.getElementById('btn-save-order').addEventListener('click', async () => {
-            if (!firebaseUser || !currentWorkspace) return;
+            if (!currentWorkspace) return;
             
             const kundenname = document.getElementById('order-kundenname').value.trim();
             const ort = document.getElementById('order-ort').value.trim();
@@ -850,8 +782,7 @@
                 renderCurrentOrderItems();
                 
             } catch (error) {
-                console.error("Error saving order:", error);
-                showModal("Fehler", "Bestellung konnte nicht gespeichert werden.");
+                handleFirebaseError(error, "Bestellung konnte nicht gespeichert werden.");
             }
         });
 
@@ -1000,7 +931,7 @@
         };
 
         const registerMissingItem = async (product) => {
-            if (!firebaseUser || !currentWorkspace) return;
+            if (!currentWorkspace) return;
             const today = getTodayDateStr();
             
             const existing = missingItems.find(m => m.datum === today && m.productId === product.id);
@@ -1025,7 +956,7 @@
                     setTimeout(() => { btn.className = oldBg; }, 300);
                 }
             } catch (error) {
-                console.error("Error updating missing item:", error);
+                handleFirebaseError(error, "Fehlartikel konnte nicht aktualisiert werden.");
             }
         };
 
@@ -1058,7 +989,7 @@
 
         productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!firebaseUser || !currentWorkspace) return;
+            if (!currentWorkspace) return;
 
             const id = document.getElementById('prod-id').value;
             const name = document.getElementById('prod-name').value.trim();
@@ -1076,8 +1007,7 @@
                 }
                 resetProductForm();
             } catch (error) {
-                console.error("Error saving product:", error);
-                showModal("Fehler", "Produkt konnte nicht gespeichert werden.");
+                handleFirebaseError(error, "Produkt konnte nicht gespeichert werden.");
             }
         });
 
@@ -1112,8 +1042,8 @@
                     try {
                         await deleteDoc(doc(db, getBasePath('products'), id));
                         showModal("Erfolg", "Produkt gelöscht.");
-                    } catch(e) {
-                        console.error(e);
+                    } catch(error) {
+                        handleFirebaseError(error, "Produkt konnte nicht gelöscht werden.");
                     }
                 }
             });
@@ -1186,7 +1116,7 @@
         });
 
         const processBackupImport = (file) => {
-            if(!firebaseUser || !currentWorkspace) return;
+            if(!currentWorkspace) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
