@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bäckerei Bestell & Produktions-App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Styles & Print CSS */
+        @media print {
+            body { background-color: white; color: black; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-container { width: 100%; margin: 0; padding: 0; }
+            .print-break { page-break-after: always; }
+            .shadow-md { box-shadow: none !important; }
+            .bg-white { background-color: transparent !important; }
+        }
+        
+        .print-only { display: none; }
+        
+        /* Modal Animation */
+        .modal-fade {
+            transition: opacity 0.2s ease-in-out;
+        }
+        
+        /* Touch friendly inputs */
+        input, select, button {
+            min-height: 44px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Auth Overlay (Login/Register) -->
+    <div id="auth-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-95 z-[100] flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-md w-full">
+            <h2 class="text-3xl font-bold text-center text-amber-600 mb-8 tracking-wider flex justify-center items-center gap-2">
+                🍞 BäckereiApp
+            </h2>
+            
+            <!-- Login Form -->
+            <div id="form-login" class="space-y-5">
+                <h3 class="text-xl font-semibold text-gray-800 text-center border-b pb-3 mb-2">Gerät Anmelden & Synchronisieren</h3>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Benutzername</label>
+                    <input type="text" id="log-user" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition" placeholder="Z.B. Filiale1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+                    <input type="password" id="log-pass" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition" placeholder="******">
+                </div>
+                <button id="btn-do-login" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg shadow-md transition text-lg mt-2">Einloggen</button>
+                <div class="text-center mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600">
+                    Noch kein Account? <button id="btn-show-register" class="text-amber-600 font-bold hover:text-amber-800 hover:underline transition">Hier registrieren</button>
+                </div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="form-register" class="space-y-5 hidden">
+                <h3 class="text-xl font-semibold text-gray-800 text-center border-b pb-3 mb-2">Neues Konto erstellen</h3>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Inhaber Code <span class="text-red-500">*</span></label>
+                    <input type="password" id="reg-code" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Code eingeben">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Wunsch-Benutzername</label>
+                    <input type="text" id="reg-user" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Ohne Leerzeichen">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Passwort (mind. 6 Zeichen)</label>
+                    <input type="password" id="reg-pass" class="w-full border border-gray-300 rounded p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="******">
+                </div>
+                <button id="btn-do-register" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition text-lg mt-2">Konto erstellen</button>
+                <div class="text-center mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600">
+                    Bereits ein Konto? <button id="btn-show-login" class="text-blue-600 font-bold hover:text-blue-800 hover:underline transition">Zum Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bg-amber-600 text-white shadow-lg no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl tracking-wider">🍞 BäckereiApp</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <button onclick="switchTab('tab-bestellung')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium bg-amber-700" data-target="tab-bestellung">Bestellung</button>
+                        <button onclick="switchTab('tab-uebersicht')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-500 transition" data-target="tab-uebersicht">Übersichten</button>
+                        <button onclick="switchTab('tab-fehlartikel')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-500 transition" data-target="tab-fehlartikel">Fehlartikel</button>
+                        <button onclick="switchTab('tab-produkte')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-500 transition" data-target="tab-produkte">Produkte</button>
+                        <button onclick="switchTab('tab-einstellungen')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-500 transition" data-target="tab-einstellungen">Einstellungen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Nav (Scrollable horizontal) -->
+        <div class="md:hidden overflow-x-auto whitespace-nowrap bg-amber-700 px-2 py-2 flex space-x-2">
+            <button onclick="switchTab('tab-bestellung')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium bg-amber-800" data-target="tab-bestellung">Bestellung</button>
+            <button onclick="switchTab('tab-uebersicht')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium" data-target="tab-uebersicht">Übersichten</button>
+            <button onclick="switchTab('tab-fehlartikel')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium" data-target="tab-fehlartikel">Fehlartikel</button>
+            <button onclick="switchTab('tab-produkte')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium" data-target="tab-produkte">Produkte</button>
+            <button onclick="switchTab('tab-einstellungen')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium" data-target="tab-einstellungen">Setup</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow w-full max-w-5xl mx-auto p-4 sm:p-6 print-container">
+        
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="flex justify-center items-center py-10 no-print">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+            <span class="ml-3 text-gray-500">Synchronisiere Cloud-Daten...</span>
+        </div>
+
+        <!-- TAB 1: Bestellung -->
+        <div id="tab-bestellung" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2 no-print">Neue Bestellung aufnehmen</h2>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+                <h3 class="text-lg font-semibold mb-4 text-amber-600">Kundendaten</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Kundenname</label>
+                        <input type="text" id="order-kundenname" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Name des Kunden">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ort / Filiale</label>
+                        <input type="text" id="order-ort" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Abholort">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                        <input type="date" id="order-datum" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                        <input type="time" id="order-uhrzeit" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+                <h3 class="text-lg font-semibold mb-4 text-amber-600">Produkte hinzufügen</h3>
+                <div class="flex flex-col md:flex-row gap-4 mb-4">
+                    <select id="order-product-select" class="flex-grow border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                        <option value="">-- Produkt wählen --</option>
+                        <!-- Options generated by JS -->
+                    </select>
+                    <input type="number" id="order-product-qty" min="1" value="1" class="w-full md:w-32 border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Menge">
+                    <button id="btn-add-product-to-order" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition">Hinzufügen</button>
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="font-medium text-gray-700 mb-2">Aktuelle Artikelliste:</h4>
+                    <ul id="current-order-items" class="divide-y divide-gray-200 border rounded bg-gray-50 empty:hidden">
+                        <!-- Items generated by JS -->
+                    </ul>
+                    <p id="empty-order-msg" class="text-sm text-gray-500 italic mt-2">Noch keine Produkte hinzugefügt.</p>
+                </div>
+            </div>
+
+            <button id="btn-save-order" class="w-full bg-green-600 hover:bg-green-700 text-white text-lg font-bold py-4 rounded-lg shadow transition no-print">
+                Bestellung Speichern (Cloud Sync)
+            </button>
+        </div>
+
+        <!-- TAB 2: Übersichten -->
+        <div id="tab-uebersicht" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6 no-print">
+                <h2 class="text-2xl font-bold text-gray-800">Übersichten & Drucken</h2>
+                <button onclick="window.print()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded shadow flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Drucken
+                </button>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6 no-print">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Zeitraum wählen:</label>
+                <div class="flex flex-wrap gap-2">
+                    <button class="filter-btn bg-amber-100 text-amber-800 border border-amber-300 px-4 py-2 rounded active" data-filter="today">Heute</button>
+                    <button class="filter-btn bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded" data-filter="tomorrow">Morgen</button>
+                    <button class="filter-btn bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded" data-filter="week">Diese Woche</button>
+                    <button class="filter-btn bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded" data-filter="month">Dieser Monat</button>
+                </div>
+            </div>
+
+            <!-- Print Headers -->
+            <div class="print-only mb-6 text-center">
+                <h1 class="text-3xl font-bold" id="print-header-title">Bestellübersicht</h1>
+                <p class="text-lg text-gray-600" id="print-header-date"></p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Ansicht A: Produktionszettel -->
+                <div class="bg-white p-6 rounded-lg shadow-md print:shadow-none print:p-0">
+                    <h3 class="text-xl font-bold mb-4 text-amber-700 border-b pb-2">Produktionszettel</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left text-sm whitespace-nowrap border-collapse">
+                            <thead class="bg-gray-100 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium text-gray-900">Produkt</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">Teigart</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900 text-right">Stückzahl</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900 text-right">Teiggewicht (Ges.)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="production-list" class="divide-y divide-gray-200">
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="print-break"></div>
+
+                <!-- Ansicht B: Kundenbestellungen -->
+                <div class="bg-white p-6 rounded-lg shadow-md print:shadow-none print:p-0 mt-8 lg:mt-0">
+                    <h3 class="text-xl font-bold mb-4 text-blue-700 border-b pb-2">Kundenbestellungen (Chronologisch)</h3>
+                    <div id="customer-orders-list" class="space-y-6">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Fehlartikel -->
+        <div id="tab-fehlartikel" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2 no-print">Fehlartikel (Ausverkauft)</h2>
+            <p class="text-gray-600 mb-6 no-print">Tippe auf ein Produkt, wenn ein Kunde danach gefragt hat, es aber ausverkauft ist.</p>
+
+            <div id="missing-buttons-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8 no-print">
+                <!-- Generated by JS -->
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mt-8">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="text-xl font-bold text-red-600">Zusammenfassung: Fehlartikel Heute</h3>
+                    <button onclick="window.print()" class="no-print text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Drucken</button>
+                </div>
+                <div class="print-only text-center mb-4">
+                    <h2 class="text-2xl font-bold">Fehlartikel - <span id="missing-print-date"></span></h2>
+                </div>
+                <ul id="missing-summary-list" class="divide-y divide-gray-200">
+                    <!-- Generated by JS -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- TAB 4: Produkte -->
+        <div id="tab-produkte" class="tab-content hidden no-print">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Stammdaten: Produkte</h2>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-lg font-semibold mb-4 text-amber-600" id="product-form-title">Neues Produkt anlegen</h3>
+                <form id="product-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="prod-id">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Produktname</label>
+                        <input type="text" id="prod-name" required class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Teigart</label>
+                        <input type="text" id="prod-teigart" required class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Gewicht pro Stück (in Gramm)</label>
+                        <input type="number" id="prod-gewicht" required min="1" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Verkaufspreis (€)</label>
+                        <input type="number" id="prod-preis" required min="0" step="0.01" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+                        <button type="button" id="btn-cancel-edit" class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded transition">Abbrechen</button>
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded font-medium transition shadow">Speichern</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Produktliste</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 font-medium text-gray-900">Name</th>
+                                <th class="px-4 py-3 font-medium text-gray-900">Teigart</th>
+                                <th class="px-4 py-3 font-medium text-gray-900">Gewicht</th>
+                                <th class="px-4 py-3 font-medium text-gray-900">Preis</th>
+                                <th class="px-4 py-3 font-medium text-gray-900 text-right">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-list-table" class="divide-y divide-gray-200">
+                            <!-- Generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: Einstellungen -->
+        <div id="tab-einstellungen" class="tab-content hidden no-print">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Einstellungen & Cloud</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Account Info -->
+                <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2 border-l-4 border-amber-600">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Aktuelles Konto</h3>
+                    <p class="text-sm text-gray-600 mb-4">Du bist angemeldet und synchronisierst deine Daten sicher über die Cloud.</p>
+                    <button id="btn-do-logout" class="bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 px-4 py-2 rounded transition flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        Ausloggen
+                    </button>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Synchronisation</h3>
+                    <p class="text-sm text-gray-600 mb-4">Die App synchronisiert sich automatisch mit der Cloud, sobald eine Internetverbindung besteht. Du kannst die Daten hier manuell neu laden.</p>
+                    <button id="btn-force-sync" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition flex justify-center items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Daten manuell synchronisieren
+                    </button>
+                    <div id="sync-status" class="mt-3 text-sm text-center text-green-600 font-medium hidden">Synchronisation erfolgreich!</div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Datensicherung (Backup)</h3>
+                    <p class="text-sm text-gray-600 mb-4">Exportiere alle Cloud-Daten als JSON-Datei oder stelle ein Backup wieder her.</p>
+                    
+                    <button id="btn-export-backup" class="w-full mb-3 bg-gray-800 hover:bg-black text-white px-4 py-2 rounded transition">
+                        📥 Backup herunterladen (Export)
+                    </button>
+                    
+                    <div class="border-t pt-4 mt-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Backup wiederherstellen</label>
+                        <input type="file" id="backup-file-input" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 mb-3">
+                        <button id="btn-import-backup" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition">
+                            📤 Backup wiederherstellen (Import)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Custom Modal for Alerts/Prompts -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] hidden modal-fade no-print">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 mx-4">
+            <h3 id="modal-title" class="text-xl font-bold mb-2 text-gray-900">Meldung</h3>
+            <p id="modal-message" class="text-gray-600 mb-4">Nachrichtentext hier...</p>
+            
+            <div id="modal-input-container" class="hidden mb-4">
+                <input type="password" id="modal-input" class="w-full border border-gray-300 rounded p-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Passwort eingeben...">
+                <p id="modal-error" class="text-red-500 text-xs mt-1 hidden">Falsches Passwort!</p>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="modal-btn-cancel" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded transition hidden">Abbrechen</button>
+                <button id="modal-btn-confirm" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded transition">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State
+        let firebaseUser = null;
+        let currentWorkspace = null;
+        let products = [];
+        let orders = [];
+        let missingItems = [];
+        let currentOrderItems = [];
+        let currentFilter = 'today';
+        
+        let unsubProducts = null;
+        let unsubOrders = null;
+        let unsubMissing = null;
+        let isAppReady = false;
+
+        const firebaseConfig = {
+			apiKey: "AIzaSyDve4SUXdVVJ0tc1aGnkXO9I4AS2pRaTME",
+			authDomain: "com-example-danielsbackz-ab8de.firebaseapp.com",
+			projectId: "com-example-danielsbackz-ab8de",
+			storageBucket: "com-example-danielsbackz-ab8de.firebasestorage.app",
+			messagingSenderId: "621450545649",
+			appId: "1:621450545649:web:c261abd720f7914322dc50"
+		};
+
+        // Configuration setup (Prüft ob wir in der Vorschau sind, ansonsten nutzt es deine Cloud)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'meine-baeckerei-app';
+        // ==========================================
+
+        // Firebase Init
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Helper: Format Username to create a safe database namespace
+        const formatUsernameToWorkspace = (username) => {
+            return username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        };
+
+        // Helper: Get base path for this specific workspace's data across all anonymous instances
+        const getBasePath = (collectionName) => `artifacts/${appId}/public/data/${currentWorkspace}_${collectionName}`;
+
+        // Utility: Date Formatters
+        const getTodayDateStr = () => {
+            const d = new Date();
+            return d.toISOString().split('T')[0];
+        };
+        const getTomorrowDateStr = () => {
+            const d = new Date();
+            d.setDate(d.getDate() + 1);
+            return d.toISOString().split('T')[0];
+        };
+        
+        // Setup Date defaults on Order Form
+        document.getElementById('order-datum').value = getTodayDateStr();
+        const now = new Date();
+        document.getElementById('order-uhrzeit').value = now.toTimeString().slice(0,5);
+        document.getElementById('missing-print-date').textContent = new Date().toLocaleDateString('de-DE');
+
+        // ====== Custom UI Modals ======
+        const modal = document.getElementById('custom-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMsg = document.getElementById('modal-message');
+        const modalInputContainer = document.getElementById('modal-input-container');
+        const modalInput = document.getElementById('modal-input');
+        const modalError = document.getElementById('modal-error');
+        const btnCancel = document.getElementById('modal-btn-cancel');
+        const btnConfirm = document.getElementById('modal-btn-confirm');
+
+        let modalConfirmCallback = null;
+
+        function showModal(title, message, isPrompt = false, callback = null) {
+            modalTitle.textContent = title;
+            modalMsg.textContent = message;
+            modalError.classList.add('hidden');
+            modalInput.value = '';
+            
+            if (isPrompt) {
+                modalInputContainer.classList.remove('hidden');
+                btnCancel.classList.remove('hidden');
+            } else {
+                modalInputContainer.classList.add('hidden');
+                btnCancel.classList.add('hidden');
+            }
+
+            modalConfirmCallback = callback;
+            modal.classList.remove('hidden');
+        }
+
+        btnCancel.onclick = () => { modal.classList.add('hidden'); };
+        btnConfirm.onclick = () => {
+            if (modalInputContainer.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                if (modalConfirmCallback) modalConfirmCallback(true);
+            } else {
+                if (modalConfirmCallback) modalConfirmCallback(modalInput.value);
+            }
+        };
+
+        // ====== Tab Navigation ======
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                if(el.dataset.target === tabId) {
+                    el.classList.add('bg-amber-800');
+                    el.classList.remove('bg-amber-700');
+                } else {
+                    el.classList.remove('bg-amber-800');
+                    el.classList.add('bg-amber-700');
+                }
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            if(tabId === 'tab-uebersicht') renderOverviews();
+        };
+
+        // ====== Authentication & Data Loading ======
+        
+        const authOverlay = document.getElementById('auth-overlay');
+        const formLogin = document.getElementById('form-login');
+        const formRegister = document.getElementById('form-register');
+
+        document.getElementById('btn-show-register').onclick = () => {
+            formLogin.classList.add('hidden');
+            formRegister.classList.remove('hidden');
+        };
+        document.getElementById('btn-show-login').onclick = () => {
+            formRegister.classList.add('hidden');
+            formLogin.classList.remove('hidden');
+        };
+
+        const proceedToApp = () => {
+            authOverlay.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => authOverlay.classList.add('hidden'), 300);
+            
+            document.getElementById('log-pass').value = '';
+            document.getElementById('reg-code').value = '';
+            document.getElementById('reg-pass').value = '';
+            
+            setupListeners();
+        };
+
+        // Register Action
+        document.getElementById('btn-do-register').onclick = async () => {
+            if (!firebaseUser) return showModal("Bitte warten", "Verbindung zum Server wird aufgebaut...");
+            const code = document.getElementById('reg-code').value;
+            const username = document.getElementById('reg-user').value;
+            const pass = document.getElementById('reg-pass').value;
+
+            if (code !== '31123112') {
+                showModal("Sicherheitsprüfung", "Der Inhaber Code ist leider falsch.");
+                return;
+            }
+            if (!username || username.trim().length < 3) {
+                showModal("Fehler", "Benutzername muss mindestens 3 Zeichen haben.");
+                return;
+            }
+            if (pass.length < 6) {
+                showModal("Fehler", "Passwort muss mindestens 6 Zeichen lang sein.");
+                return;
+            }
+
+            const workspaceId = formatUsernameToWorkspace(username);
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_accounts', workspaceId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    showModal("Fehler", "Dieser Benutzername existiert bereits. Bitte logge dich ein.");
+                } else {
+                    await setDoc(docRef, { password: pass, createdAt: new Date().toISOString() });
+                    currentWorkspace = workspaceId;
+                    proceedToApp();
+                }
+            } catch (error) {
+                console.error("Register Error:", error);
+                showModal("Fehler", "Registrierung auf dem Server fehlgeschlagen.");
+            }
+        };
+
+        // Login Action
+        document.getElementById('btn-do-login').onclick = async () => {
+            if (!firebaseUser) return showModal("Bitte warten", "Verbindung zum Server wird aufgebaut...");
+            const username = document.getElementById('log-user').value;
+            const pass = document.getElementById('log-pass').value;
+
+            if (!username || !pass) {
+                showModal("Fehler", "Bitte Benutzername und Passwort eingeben.");
+                return;
+            }
+
+            const workspaceId = formatUsernameToWorkspace(username);
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_accounts', workspaceId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists() && docSnap.data().password === pass) {
+                    currentWorkspace = workspaceId;
+                    proceedToApp();
+                } else {
+                    showModal("Anmeldung fehlgeschlagen", "Benutzername oder Passwort ist nicht korrekt.");
+                }
+            } catch (error) {
+                console.error("Login Error:", error);
+                showModal("Fehler", "Server-Verbindung fehlgeschlagen.");
+            }
+        };
+
+        // Logout Action
+        document.getElementById('btn-do-logout').onclick = () => {
+            currentWorkspace = null;
+            isAppReady = false; 
+            loadedCount = 0;
+            
+            if(unsubProducts) unsubProducts();
+            if(unsubOrders) unsubOrders();
+            if(unsubMissing) unsubMissing();
+            
+            authOverlay.classList.remove('hidden');
+            setTimeout(() => authOverlay.classList.remove('opacity-0', 'pointer-events-none'), 10);
+            
+            // Clear UI
+            document.getElementById('product-list-table').innerHTML = '';
+            document.getElementById('production-list').innerHTML = '';
+            document.getElementById('customer-orders-list').innerHTML = '';
+            document.getElementById('missing-buttons-grid').innerHTML = '';
+            document.getElementById('missing-summary-list').innerHTML = '';
+        };
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch(e) { console.error("Under-the-hood auth failed", e); }
+        };
+
+        const setupListeners = () => {
+            if (!firebaseUser || !currentWorkspace) return;
+            
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            unsubProducts = onSnapshot(collection(db, getBasePath('products')), (snapshot) => {
+                products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProductList();
+                updateOrderProductSelect();
+                renderMissingItemsButtons();
+                checkLoadingComplete();
+            }, (error) => console.error("Error products:", error));
+
+            unsubOrders = onSnapshot(collection(db, getBasePath('orders')), (snapshot) => {
+                orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if(document.getElementById('tab-uebersicht').classList.contains('hidden') === false){
+                    renderOverviews();
+                }
+                checkLoadingComplete();
+            }, (error) => console.error("Error orders:", error));
+
+            unsubMissing = onSnapshot(collection(db, getBasePath('missing_items')), (snapshot) => {
+                missingItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderMissingSummary();
+                checkLoadingComplete();
+            }, (error) => console.error("Error missing items:", error));
+        };
+
+        let loadedCount = 0;
+        
+        const checkLoadingComplete = () => {
+            loadedCount++;
+            if (loadedCount >= 3 && !isAppReady) {
+                isAppReady = true;
+                document.getElementById('loading-indicator').classList.add('hidden');
+                switchTab('tab-bestellung'); 
+            } else if (isAppReady) {
+                document.getElementById('loading-indicator').classList.add('hidden');
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Background connection successful. We keep the UI overlay until pseudo-login is complete.
+                firebaseUser = user;
+            } else {
+                firebaseUser = null;
+            }
+        });
+
+        initAuth();
+
+        // ====== Tab 1: Bestellung ======
+        const updateOrderProductSelect = () => {
+            const select = document.getElementById('order-product-select');
+            select.innerHTML = '<option value="">-- Produkt wählen --</option>';
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.name} (${p.gewicht}g)`;
+                select.appendChild(opt);
+            });
+        };
+
+        document.getElementById('btn-add-product-to-order').addEventListener('click', () => {
+            const select = document.getElementById('order-product-select');
+            const qtyInput = document.getElementById('order-product-qty');
+            const prodId = select.value;
+            const qty = parseInt(qtyInput.value);
+
+            if (!prodId || isNaN(qty) || qty <= 0) {
+                showModal("Fehler", "Bitte wähle ein Produkt und eine gültige Menge.");
+                return;
+            }
+
+            const product = products.find(p => p.id === prodId);
+            if (product) {
+                const existing = currentOrderItems.find(item => item.productId === prodId);
+                if (existing) {
+                    existing.qty += qty;
+                } else {
+                    currentOrderItems.push({
+                        productId: prodId,
+                        name: product.name,
+                        teigart: product.teigart,
+                        gewicht: product.gewicht,
+                        preis: product.preis,
+                        qty: qty
+                    });
+                }
+                
+                select.value = "";
+                qtyInput.value = "1";
+                renderCurrentOrderItems();
+            }
+        });
+
+        const renderCurrentOrderItems = () => {
+            const ul = document.getElementById('current-order-items');
+            const msg = document.getElementById('empty-order-msg');
+            ul.innerHTML = '';
+            
+            if (currentOrderItems.length === 0) {
+                ul.classList.add('hidden');
+                msg.classList.remove('hidden');
+                return;
+            }
+            
+            ul.classList.remove('hidden');
+            msg.classList.add('hidden');
+
+            currentOrderItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center p-3 bg-white";
+                li.innerHTML = `
+                    <div>
+                        <span class="font-bold text-gray-800">${item.qty}x</span> 
+                        <span class="text-gray-700">${item.name}</span>
+                        <span class="text-sm text-gray-500 ml-2">(${(item.qty * item.gewicht).toFixed(0)}g)</span>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700 font-bold px-2 py-1" onclick="window.removeOrderItem(${index})">X</button>
+                `;
+                ul.appendChild(li);
+            });
+        };
+
+        window.removeOrderItem = (index) => {
+            currentOrderItems.splice(index, 1);
+            renderCurrentOrderItems();
+        };
+
+        document.getElementById('btn-save-order').addEventListener('click', async () => {
+            if (!firebaseUser || !currentWorkspace) return;
+            
+            const kundenname = document.getElementById('order-kundenname').value.trim();
+            const ort = document.getElementById('order-ort').value.trim();
+            const datum = document.getElementById('order-datum').value;
+            const uhrzeit = document.getElementById('order-uhrzeit').value;
+
+            if (!kundenname || !datum || currentOrderItems.length === 0) {
+                showModal("Fehlende Daten", "Bitte Kundenname, Datum angeben und mindestens ein Produkt hinzufügen.");
+                return;
+            }
+
+            const orderData = {
+                kundenname,
+                ort,
+                datum,
+                uhrzeit,
+                items: currentOrderItems,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(collection(db, getBasePath('orders')), orderData);
+                showModal("Erfolg", "Bestellung wurde gespeichert!");
+                
+                document.getElementById('order-kundenname').value = '';
+                document.getElementById('order-ort').value = '';
+                currentOrderItems = [];
+                renderCurrentOrderItems();
+                
+            } catch (error) {
+                console.error("Error saving order:", error);
+                showModal("Fehler", "Bestellung konnte nicht gespeichert werden.");
+            }
+        });
+
+        // ====== Tab 2: Übersichten ======
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('bg-amber-100', 'text-amber-800', 'border-amber-300', 'active');
+                    b.classList.add('bg-gray-100', 'text-gray-800', 'border-gray-300');
+                });
+                e.target.classList.remove('bg-gray-100', 'text-gray-800', 'border-gray-300');
+                e.target.classList.add('bg-amber-100', 'text-amber-800', 'border-amber-300', 'active');
+                currentFilter = e.target.dataset.filter;
+                renderOverviews();
+            });
+        });
+
+        const isDateInFilter = (dateStr, filter) => {
+            const orderDate = new Date(dateStr);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (filter === 'today') {
+                return dateStr === getTodayDateStr();
+            } else if (filter === 'tomorrow') {
+                return dateStr === getTomorrowDateStr();
+            } else if (filter === 'week') {
+                const day = today.getDay() || 7; 
+                const firstDayOfWeek = new Date(today);
+                firstDayOfWeek.setDate(today.getDate() - day + 1);
+                const lastDayOfWeek = new Date(firstDayOfWeek);
+                lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+                return orderDate >= firstDayOfWeek && orderDate <= lastDayOfWeek;
+            } else if (filter === 'month') {
+                return orderDate.getMonth() === today.getMonth() && orderDate.getFullYear() === today.getFullYear();
+            }
+            return true;
+        };
+
+        const renderOverviews = () => {
+            const filterNames = { 'today': 'Heute', 'tomorrow': 'Morgen', 'week': 'Diese Woche', 'month': 'Dieser Monat' };
+            document.getElementById('print-header-title').textContent = `Bestellübersicht (${filterNames[currentFilter]})`;
+            document.getElementById('print-header-date').textContent = `Erstellt am: ${new Date().toLocaleString('de-DE')}`;
+
+            const filteredOrders = orders.filter(o => isDateInFilter(o.datum, currentFilter));
+
+            const productionTotals = {};
+            filteredOrders.forEach(order => {
+                order.items.forEach(item => {
+                    if (!productionTotals[item.productId]) {
+                        productionTotals[item.productId] = {
+                            name: item.name,
+                            teigart: item.teigart,
+                            gewicht: item.gewicht,
+                            totalQty: 0
+                        };
+                    }
+                    productionTotals[item.productId].totalQty += item.qty;
+                });
+            });
+
+            const prodTbody = document.getElementById('production-list');
+            prodTbody.innerHTML = '';
+            
+            const prodArray = Object.values(productionTotals).sort((a,b) => {
+                if(a.teigart < b.teigart) return -1;
+                if(a.teigart > b.teigart) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            if (prodArray.length === 0) {
+                prodTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-gray-500">Keine Daten für diesen Zeitraum.</td></tr>';
+            } else {
+                prodArray.forEach(p => {
+                    const totalWeight = (p.totalQty * p.gewicht) / 1000; 
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap">${p.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">${p.teigart}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right font-bold text-lg">${p.totalQty}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-gray-600">${totalWeight.toFixed(2)} kg</td>
+                    `;
+                    prodTbody.appendChild(tr);
+                });
+            }
+
+            const custContainer = document.getElementById('customer-orders-list');
+            custContainer.innerHTML = '';
+
+            const sortedOrders = [...filteredOrders].sort((a, b) => {
+                const dateA = new Date(`${a.datum}T${a.uhrzeit || '00:00'}`);
+                const dateB = new Date(`${b.datum}T${b.uhrzeit || '00:00'}`);
+                return dateA - dateB;
+            });
+
+            if (sortedOrders.length === 0) {
+                custContainer.innerHTML = '<p class="text-gray-500 italic">Keine Bestellungen vorhanden.</p>';
+            } else {
+                sortedOrders.forEach(order => {
+                    const div = document.createElement('div');
+                    div.className = "border rounded p-4 bg-gray-50 print:bg-transparent print:border-gray-300";
+                    
+                    let itemsHtml = order.items.map(i => `<div class="flex justify-between py-1 border-b border-gray-100 last:border-0"><span class="font-medium">${i.qty}x ${i.name}</span><span class="text-gray-500 text-sm">${i.teigart}</span></div>`).join('');
+
+                    const dateObj = new Date(order.datum);
+                    const formattedDate = dateObj.toLocaleDateString('de-DE');
+
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-bold text-lg text-gray-900">${order.kundenname}</h4>
+                                <p class="text-sm text-gray-600">${order.ort || 'Kein Ort'}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="block font-bold text-amber-700">${order.uhrzeit} Uhr</span>
+                                <span class="block text-sm text-gray-500">${formattedDate}</span>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            ${itemsHtml}
+                        </div>
+                    `;
+                    custContainer.appendChild(div);
+                });
+            }
+        };
+
+        // ====== Tab 3: Fehlartikel ======
+        const renderMissingItemsButtons = () => {
+            const grid = document.getElementById('missing-buttons-grid');
+            grid.innerHTML = '';
+            
+            products.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = "bg-white border-2 border-red-200 hover:border-red-500 hover:bg-red-50 text-gray-800 p-4 rounded-xl shadow-sm transition flex flex-col items-center justify-center min-h-[100px]";
+                btn.innerHTML = `
+                    <span class="font-bold text-center leading-tight mb-1">${p.name}</span>
+                    <span class="text-xs text-gray-500">+1 Notieren</span>
+                `;
+                btn.onclick = () => registerMissingItem(p);
+                grid.appendChild(btn);
+            });
+        };
+
+        const registerMissingItem = async (product) => {
+            if (!firebaseUser || !currentWorkspace) return;
+            const today = getTodayDateStr();
+            
+            const existing = missingItems.find(m => m.datum === today && m.productId === product.id);
+            
+            try {
+                if (existing) {
+                    await updateDoc(doc(db, getBasePath('missing_items'), existing.id), {
+                        count: existing.count + 1
+                    });
+                } else {
+                    await addDoc(collection(db, getBasePath('missing_items')), {
+                        datum: today,
+                        productId: product.id,
+                        name: product.name,
+                        count: 1
+                    });
+                }
+                const btn = Array.from(document.getElementById('missing-buttons-grid').children).find(b => b.textContent.includes(product.name));
+                if(btn) {
+                    const oldBg = btn.className;
+                    btn.className = "bg-red-500 text-white border-red-600 p-4 rounded-xl shadow-sm flex flex-col items-center justify-center min-h-[100px]";
+                    setTimeout(() => { btn.className = oldBg; }, 300);
+                }
+            } catch (error) {
+                console.error("Error updating missing item:", error);
+            }
+        };
+
+        const renderMissingSummary = () => {
+            const ul = document.getElementById('missing-summary-list');
+            ul.innerHTML = '';
+            const today = getTodayDateStr();
+            const todaysItems = missingItems.filter(m => m.datum === today).sort((a,b) => b.count - a.count);
+
+            if(todaysItems.length === 0){
+                ul.innerHTML = '<li class="py-4 text-center text-gray-500 italic">Heute keine Fehlartikel erfasst.</li>';
+                return;
+            }
+
+            todaysItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center py-3";
+                li.innerHTML = `
+                    <span class="font-medium text-gray-800">${item.name}</span>
+                    <span class="bg-red-100 text-red-800 font-bold px-3 py-1 rounded-full">${item.count}x vermisst</span>
+                `;
+                ul.appendChild(li);
+            });
+        };
+
+
+        // ====== Tab 4: Produkte (CRUD) ======
+        const productForm = document.getElementById('product-form');
+        const btnCancelEdit = document.getElementById('btn-cancel-edit');
+
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!firebaseUser || !currentWorkspace) return;
+
+            const id = document.getElementById('prod-id').value;
+            const name = document.getElementById('prod-name').value.trim();
+            const teigart = document.getElementById('prod-teigart').value.trim();
+            const gewicht = parseInt(document.getElementById('prod-gewicht').value);
+            const preis = parseFloat(document.getElementById('prod-preis').value);
+
+            const prodData = { name, teigart, gewicht, preis };
+
+            try {
+                if (id) {
+                    await updateDoc(doc(db, getBasePath('products'), id), prodData);
+                } else {
+                    await addDoc(collection(db, getBasePath('products')), prodData);
+                }
+                resetProductForm();
+            } catch (error) {
+                console.error("Error saving product:", error);
+                showModal("Fehler", "Produkt konnte nicht gespeichert werden.");
+            }
+        });
+
+        const resetProductForm = () => {
+            productForm.reset();
+            document.getElementById('prod-id').value = '';
+            document.getElementById('product-form-title').textContent = 'Neues Produkt anlegen';
+            btnCancelEdit.classList.add('hidden');
+        };
+
+        btnCancelEdit.addEventListener('click', resetProductForm);
+
+        window.editProduct = (id) => {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                document.getElementById('prod-id').value = product.id;
+                document.getElementById('prod-name').value = product.name;
+                document.getElementById('prod-teigart').value = product.teigart;
+                document.getElementById('prod-gewicht').value = product.gewicht;
+                document.getElementById('prod-preis').value = product.preis;
+                
+                document.getElementById('product-form-title').textContent = 'Produkt bearbeiten';
+                btnCancelEdit.classList.remove('hidden');
+                document.getElementById('tab-produkte').scrollIntoView({behavior: 'smooth'});
+            }
+        };
+
+        window.deleteProduct = (id) => {
+            const product = products.find(p => p.id === id);
+            showModal("Löschen bestätigen", `Möchtest du das Produkt "${product?.name}" wirklich löschen?`, true, async (pwd) => {
+                if(pwd) {
+                    try {
+                        await deleteDoc(doc(db, getBasePath('products'), id));
+                        showModal("Erfolg", "Produkt gelöscht.");
+                    } catch(e) {
+                        console.error(e);
+                    }
+                }
+            });
+            document.getElementById('modal-input-container').classList.add('hidden');
+        };
+
+        const renderProductList = () => {
+            const tbody = document.getElementById('product-list-table');
+            tbody.innerHTML = '';
+            
+            const sorted = [...products].sort((a,b) => a.name.localeCompare(b.name));
+
+            sorted.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-900">${p.name}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-500">${p.teigart}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-500">${p.gewicht}g</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-500">${p.preis.toFixed(2)}€</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="editProduct('${p.id}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Bearbeiten</button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-red-600 hover:text-red-900">Löschen</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        // ====== Tab 5: Einstellungen & Backup ======
+        
+        document.getElementById('btn-force-sync').addEventListener('click', () => {
+            const status = document.getElementById('sync-status');
+            status.classList.remove('hidden');
+            setTimeout(() => { status.classList.add('hidden'); }, 3000);
+        });
+
+        document.getElementById('btn-export-backup').addEventListener('click', () => {
+            const backupData = {
+                timestamp: new Date().toISOString(),
+                products: products,
+                orders: orders,
+                missingItems: missingItems
+            };
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `baeckerei_backup_${getTodayDateStr()}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
+        document.getElementById('btn-import-backup').addEventListener('click', () => {
+            const fileInput = document.getElementById('backup-file-input');
+            if (!fileInput.files.length) {
+                showModal("Hinweis", "Bitte wähle zuerst eine JSON-Backup-Datei aus.");
+                return;
+            }
+
+            showModal("Sicherheitsabfrage", "Bitte gib das Backup-Passwort ein, um die Daten wiederherzustellen. (Achtung: Dies überschreibt bestehende identische Datensätze).", true, (inputValue) => {
+                if (inputValue !== "31123112") {
+                    document.getElementById('modal-error').classList.remove('hidden');
+                    return; 
+                }
+                
+                document.getElementById('custom-modal').classList.add('hidden');
+                processBackupImport(fileInput.files[0]);
+            });
+        });
+
+        const processBackupImport = (file) => {
+            if(!firebaseUser || !currentWorkspace) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.products && !data.orders) throw new Error("Ungültiges Format");
+
+                    document.getElementById('loading-indicator').classList.remove('hidden');
+
+                    if (data.products) {
+                        for (const p of data.products) {
+                            const { id, ...prodData } = p;
+                            await setDoc(doc(db, getBasePath('products'), id), prodData);
+                        }
+                    }
+                    if (data.orders) {
+                        for (const o of data.orders) {
+                            const { id, ...orderData } = o;
+                            await setDoc(doc(db, getBasePath('orders'), id), orderData);
+                        }
+                    }
+                    if (data.missingItems) {
+                        for (const m of data.missingItems) {
+                            const { id, ...mData } = m;
+                            await setDoc(doc(db, getBasePath('missing_items'), id), mData);
+                        }
+                    }
+
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    showModal("Erfolg", "Backup wurde erfolgreich wiederhergestellt!");
+                    document.getElementById('backup-file-input').value = ""; 
+                    
+                } catch (error) {
+                    console.error("Import error:", error);
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    showModal("Fehler", "Die Datei konnte nicht gelesen werden oder ist beschädigt.");
+                }
+            };
+            reader.readAsText(file);
+        };
+
+    </script>
+</body>
+</html>
