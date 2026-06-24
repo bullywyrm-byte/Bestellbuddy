@@ -17,6 +17,64 @@
             .bg-white { background-color: transparent !important; }
         }
         
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
         .print-only { display: none; }
         
         /* Modal Animation */
@@ -368,6 +426,7 @@
     <!-- Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -385,14 +444,19 @@
         let unsubMissing = null;
         let isAppReady = false;
 
-        const firebaseConfig = {
-			apiKey: "AIzaSyDve4SUXdVVJ0tc1aGnkXO9I4AS2pRaTME",
-			authDomain: "com-example-danielsbackz-ab8de.firebaseapp.com",
-			projectId: "com-example-danielsbackz-ab8de",
-			storageBucket: "com-example-danielsbackz-ab8de.firebasestorage.app",
-			messagingSenderId: "621450545649",
-			appId: "1:621450545649:web:c261abd720f7914322dc50"
-		};
+        // ==========================================
+        // 🔥 DEINE FIREBASE CLOUD KONFIGURATION 🔥
+        // ==========================================
+        // Ersetze die Werte hier mit den Daten aus deiner Firebase Console
+        const myFirebaseConfig = {
+            apiKey: "AIzaSyA11L_XANyZNFlZdNWIGI7ycTBcyVjjfA8",
+            authDomain: "bestellbuddy-12aeb.firebaseapp.com",
+            projectId: "bestellbuddy-12aeb",
+            storageBucket: "bestellbuddy-12aeb.firebasestorage.app",
+            messagingSenderId: "724709499033",
+            appId: "1:724709499033:web:3db49f000475a7200c5808",
+            measurementId: "G-1QH5QJ0F78"
+        };
 
         // Configuration setup (Prüft ob wir in der Vorschau sind, ansonsten nutzt es deine Cloud)
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
@@ -401,6 +465,18 @@
 
         // Firebase Init
         const app = initializeApp(firebaseConfig);
+        
+        // Analytics nur initialisieren, wenn die echte Konfiguration (Bestellbuddy) genutzt wird,
+        // um 404-Fehler in der Vorschau-Umgebung zu vermeiden.
+        let analytics = null;
+        if (firebaseConfig.projectId === "bestellbuddy-12aeb") {
+            try {
+                analytics = getAnalytics(app);
+            } catch (e) {
+                console.warn("Analytics Warnung:", e);
+            }
+        }
+        
         const auth = getAuth(app);
         const db = getFirestore(app);
 
